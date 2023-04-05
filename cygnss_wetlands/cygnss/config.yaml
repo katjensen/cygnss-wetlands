@@ -1,0 +1,45 @@
+# Config parameters for L1 data ingestion
+# TODO: redesign for flexibility of (e.g. RAW data? L2?)
+
+download:
+  s3_bucket: "podaac-ops-cumulus-protected" 
+  http: "https://archive.podaac.earthdata.nasa.gov/podaac-ops-cumulus-protected"
+
+L1:
+  product_version: V3.1
+
+  sample_attributes:
+    - ddm_timestamp_utc
+    - sc_lat
+    - sc_lon
+
+  ddm_attributes:
+    - sp_lat
+    - sp_lon
+    - sp_inc_angle
+    - ddm_snr
+    - sv_num
+    - brcs_ddm_sp_bin_dopp_col
+    - brcs_ddm_sp_bin_delay_row
+    - rx_to_sp_range
+    - tx_to_sp_range
+    - track_id
+    - gps_tx_power_db_w
+    - gps_ant_gain_db_i
+    - sp_rx_gain
+
+  ddm_aattributes:
+    - brcs
+
+  # List of quality flags to screen out
+  quality_flags:
+    - s_band_powered_up
+    - large_sc_attitude_err
+    - black_body_ddm
+    - ddmi_reconfigured
+    - ddm_is_test_pattern
+    - channel_idle
+    - direct_signal_in_ddm
+    - rfi_detected
+    - bb_framing_error
+    - invalid_roll_state

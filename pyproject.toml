@@ -15,6 +15,10 @@ geopandas = "^0.12.2"
 pandas = "^1.5.3"
 jupyterlab = "^3.6.2"
 netCDF4 = "^1.6.3"
+python-dotenv = "^1.0.0"
+s3fs = "^2023.3.0"
+tqdm = "^4.65.0"
+pyyaml = "^6.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^22.3.0"
@@ -25,6 +29,9 @@ flake8-pyproject = "^1.2.2"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.1.2"
+
+[tool.poetry.scripts]
+cygnss = "cygnss_wetlands.cygnss.cli:entry"
 
 [build-system]
 requires = ["poetry-core"]
