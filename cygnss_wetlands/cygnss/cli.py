@@ -1,9 +1,12 @@
 import datetime
+import os
 from pathlib import Path
 
 import click
 
 from cygnss_wetlands import __version__
+from cygnss_wetlands.cygnss.download import http_download_by_date
+from cygnss_wetlands.enums import CygnssProductLevel
 
 
 @click.group()
@@ -17,26 +20,34 @@ def main(
     pass
 
 
-def callback_datetime(value: str) -> datetime.datetime:
+def callback_datetime(ctx, param, value) -> datetime.datetime:
     try:
         return datetime.datetime.strptime(value, "%Y-%m-%d")
     except ValueError as e:
         raise click.BadParameter(str(e))
 
 
+def callback_product_level(ctx, param, value) -> CygnssProductLevel:
+    try:
+        return CygnssProductLevel.from_str(value)
+    except ValueError as e:
+        raise click.BadParameter(str(e))
+
+
 @main.command(help="Download local copies of CYGNSS data products from NASA PODAAC HTTP site (not s3 - for now)")
 @click.option(
-    "--level",
+    "--product_level",
     required=True,
     type=click.Choice(
         [
             "L1",
         ]
     ),
+    callback=callback_product_level,
     help="Data product level",
 )
 @click.option(
-    "--version",
+    "--product_version",
     type=click.Choice(["v2.1", "v3.0", "v3.1"]),
     default="v3.1",
     show_default=True,
@@ -60,16 +71,41 @@ def callback_datetime(value: str) -> datetime.datetime:
     required=True,
     help="Destination path for output files(s)",
 )
+@click.option(
+    "--overwrite",
+    type=click.BOOL,
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="Flag for overwriting existing files",
+)
 @click.pass_context
 def download(
     ctx,
-    level: str,
-    version: Path,
+    product_level: str,
+    product_version: Path,
     start_date: datetime.datetime,
     end_date: datetime.datetime,
-    output_dir: Path,
+    dest_dir: Path,
+    overwrite: bool,
 ):
-    pass
+
+    # Iterate over each date
+    date_list = [start_date + datetime.timedelta(days=x) for x in range((end_date - start_date).days + 1)]
+
+    for date in date_list:
+
+        # Organize destination subfolder, change current work directory to this
+        dest_subdir = dest_dir.joinpath(str(date.year), "{:02d}".format(date.month), "{:02d}".format(date.day))
+
+        if not dest_subdir.exists():
+            os.makedirs(dest_subdir)
+
+        # Download all files from this date
+        # TODO: add a log to keep track of files that are downloaded - and any failures
+        filelist = http_download_by_date(product_level, date, dest_subdir, overwrite)
+
+    print(f"Successfully downloaded: {filelist}")
 
 
 def entry():

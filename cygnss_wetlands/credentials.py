@@ -14,11 +14,11 @@ class Credentials:
     # For now assuming we can read from project root '.env' file or env vars to pass in credentials
 
     try:
-        EARTH_DATA_USERNAME = os.environ["EARTH_DATA_USERNAME"]
-        EARTH_DATA_PASSWORD = os.environ["EARTH_DATA_PASSWORD"]
+        EARTHDATA_USERNAME = os.environ["EARTHDATA_USERNAME"]
+        EARTHDATA_PASSWORD = os.environ["EARTHDATA_PASSWORD"]
 
     except KeyError:
-        EARTH_DATA_USERNAME = None
-        EARTH_DATA_PASSWORD = None
+        EARTHDATA_USERNAME = None
+        EARTHDATA_PASSWORD = None
 
-        raise Warning("EARTH DATA login information could not be found in environment variables")
+        raise Warning("EARTHDATA login information could not be found in environment variables")
