@@ -69,7 +69,8 @@ def callback_product_level(ctx, param, value) -> CygnssProductLevel:
     "--dest_dir",
     type=click.Path(exists=True, path_type=Path),
     required=True,
-    help="Destination path for output files(s)",
+    help="Destination parent directory. Files will download to nested location within this parent directory, following: "
+    "PRODUCT_LEVEL / PRODUCT_VERSION / YYYY / MM / DD ",
 )
 @click.option(
     "--overwrite",
@@ -96,7 +97,9 @@ def download(
     for date in date_list:
 
         # Organize destination subfolder, change current work directory to this
-        dest_subdir = dest_dir.joinpath(str(date.year), "{:02d}".format(date.month), "{:02d}".format(date.day))
+        dest_subdir = dest_dir.joinpath(
+            product_level.name, product_version, str(date.year), "{:02d}".format(date.month), "{:02d}".format(date.day)
+        )
 
         if not dest_subdir.exists():
             os.makedirs(dest_subdir)

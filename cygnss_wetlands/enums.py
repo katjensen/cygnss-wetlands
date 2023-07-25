@@ -23,3 +23,43 @@ class CygnssProductLevel(ExtendedEnum):
     L1 = 1
     L2 = 2
     L3 = 3
+
+
+class GridType(ExtendedEnum):
+    EASE2_G1km = enum.auto()
+
+    EASE2_G3km = enum.auto()
+    EASE2_N3km = enum.auto()
+    EASE2_S3km = enum.auto()
+
+    EASE2_G3125km = enum.auto()
+    EASE2_N3125km = enum.auto()
+    EASE2_S3125km = enum.auto()
+
+    EASE2_G625km = enum.auto()
+    EASE2_N625km = enum.auto()
+    EASE2_S625km = enum.auto()
+
+    EASE2_G9km = enum.auto()
+    EASE2_N9km = enum.auto()
+    EASE2_S9km = enum.auto()
+
+    EASE2_G125km = enum.auto()
+    EASE2_N125km = enum.auto()
+    EASE2_S125km = enum.auto()
+
+    EASE_G125km = enum.auto()
+    EASE_N125km = enum.auto()
+    EASE_S125km = enum.auto()
+
+    EASE2_G25km = enum.auto()
+    EASE2_N25km = enum.auto()
+    EASE2_S25km = enum.auto()
+
+    EASE_G25km = enum.auto()
+    EASE_N25km = enum.auto()
+    EASE_S25km = enum.auto()
+
+    EASE2_G36km = enum.auto()
+    EASE2_N36km = enum.auto()
+    EASE2_S36km = enum.auto()

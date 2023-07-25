@@ -54,7 +54,7 @@ def http_download_by_date(
     Args:
         product_level (CygnssProductLevel):
         datetime (datetime.datetime)
-        dest_dir (Path): Parent directory fr - files will download to nested location based on YYYY/MM
+        dest_dir (Path): Destination download directory
     """
     password_manager = urllib.request.HTTPPasswordMgrWithDefaultRealm()
     password_manager.add_password(
@@ -75,7 +75,7 @@ def http_download_by_date(
     )
     urllib.request.install_opener(opener)
 
-    version_int = int(config[product_level.name]["product_version"].replace("V", "").replace(".", ""))
+    version_int = int(config[product_level.name]["product_version"].replace("v", "").replace(".", ""))
     spacecraft_id_list = np.arange(1, 8 + 1)
 
     success_download_list = []
@@ -95,7 +95,7 @@ def http_download_by_date(
 
         if not complete_filepath.exists() or (complete_filepath.exists() and overwrite):
 
-            url = f'{config["download"]["http"]}/CYGNSS_{product_level.name}_{config[product_level.name]["product_version"]}/{filename}'
+            url = f'{config["download"]["http"]}/CYGNSS_{product_level.name}_{config[product_level.name]["product_version"].upper()}/{filename}'
 
             try:
                 # Create and submit the request. There are a wide range of exceptions that

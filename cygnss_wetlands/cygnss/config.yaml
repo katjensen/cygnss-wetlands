@@ -1,45 +1,81 @@
 # Config parameters for L1 data ingestion
-# TODO: redesign for flexibility of (e.g. RAW data? L2?)
+# TODO: redesign for flexibility of (e.g. Raw or Hi res data? L2?)
 
 download:
   s3_bucket: "podaac-ops-cumulus-protected" 
   http: "https://archive.podaac.earthdata.nasa.gov/podaac-ops-cumulus-protected"
 
 L1:
-  product_version: V3.1
+  product_version: v3.1
 
-  sample_attributes:
+  per_sample_attributes:
     - ddm_timestamp_utc
     - sc_lat
     - sc_lon
 
-  ddm_attributes:
+  per_ddm_attributes:
+    - prn_code
+    - sv_num
+    - track_id
     - sp_lat
     - sp_lon
     - sp_inc_angle
-    - ddm_snr
-    - sv_num
-    - brcs_ddm_sp_bin_dopp_col
-    - brcs_ddm_sp_bin_delay_row
-    - rx_to_sp_range
-    - tx_to_sp_range
-    - track_id
+    - sp_rx_gain
     - gps_tx_power_db_w
     - gps_ant_gain_db_i
-    - sp_rx_gain
+    - ddm_snr
+    - rx_to_sp_range
+    - tx_to_sp_range  
+    - brcs_ddm_sp_bin_dopp_col
+    - brcs_ddm_sp_bin_delay_row
 
-  ddm_aattributes:
+  per_bin_attributes:
     - brcs
 
-  # List of quality flags to screen out
+  # Dictionary of all quality flags and associated screening (True= to filter out from analysis, False= ignore flag / ok to use)
+  # These are listed in sequential order of the bit masks (NOTE: Using Pytonn >= 3.7 will preserve order by default)
   quality_flags:
-    - s_band_powered_up
-    - large_sc_attitude_err
-    - black_body_ddm
-    - ddmi_reconfigured
-    - ddm_is_test_pattern
-    - channel_idle
-    - direct_signal_in_ddm
-    - rfi_detected
-    - bb_framing_error
-    - invalid_roll_state
+    1:
+      poor_overall_quality: False
+      s_band_powered_up: True
+      small_sc_attitude_err: False
+      large_sc_attitude_err: True
+      black_body_ddm: True
+      ddmi_reconfigured: True
+      spacewire_crc_invalid: False
+      ddm_is_test_pattern: True
+      channel_idle: True
+      low_confidence_ddm_noise_floor: False
+      sp_over_land: False
+      sp_very_near_land: False
+      sp_near_land: False
+      large_step_noise_floor: False
+      large_step_lna_temp: False
+      direct_signal_in_ddm: True
+      low_confidence_gps_eirp_estimate: True
+      rfi_detected: True
+      brcs_ddm_sp_bin_delay_error: False
+      brcs_ddm_sp_bin_dopp_error: False
+      neg_brcs_value_used_for_nbrcs: False
+      gps_pvt_sp3_error: False
+      sp_non_existent_error: True
+      brcs_lut_range_error: False
+      ant_data_lut_range_error: False
+      bb_framing_error: True
+      fsw_comp_shift_error: False
+      low_quality_gps_ant_knowledge: False
+      sc_altitude_out_of_nominal_range: False
+      anomalous_sampling_period: False
+      invalid_roll_state: True
+
+    2:
+      incorrect_ddmi_antenna_selection: True
+      high_signal_noise: True
+      noise_floor_cal_error: False
+      sp_in_sidelobe: False
+      negligible_nst_outage: False
+      minor_nst_outage: False
+      fatal_nst_outage: False
+      low_zenith_ant_gain: False
+      poor_bb_quality: False
+      poor_quality_bin_ratio: False
