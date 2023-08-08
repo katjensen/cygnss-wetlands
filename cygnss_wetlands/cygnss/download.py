@@ -109,7 +109,7 @@ def http_download_by_date(
                     shutil.copyfileobj(response, f)
                     success_download_list.append(dest_dir.joinpath(filename))
 
-            except requests.exceptions.HTTPError as e:
+            except (requests.exceptions.HTTPError, urllib.error.URLError) as e:
 
                 # handle any errors here
                 print(f"Could not download file: {filename}, error: {e}")
