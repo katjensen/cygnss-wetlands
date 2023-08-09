@@ -34,6 +34,13 @@ conda activate cygnss-wetlands
 poetry env use /opt/homebrew/Caskroom/miniconda/base/envs/base-python-3.9/bin/python3
 ```
 
+If you would like (optiona), you can enable the `virtualenvs.in-project option` for this project, e.g. by running in the project root directory:
+```
+ poetry config virtualenvs.in-project true
+```
+
+This will cause Poetry to create new environments in $project_root/.venv/. If you rename the project directory the environment should continue to work.
+
 ### 4. Install package
 
 You can install project dependencies, along with pre-commit git hooks, by:
@@ -41,12 +48,19 @@ You can install project dependencies, along with pre-commit git hooks, by:
 make install
 ```
 
-If you want, you may install this `cygnss-wetlands` library in editable mode by:
+### 5. Activate your envrionment
+If you are NOT using conda to manage your environment, when working on this project (now and in the future), activate your environment by:
+```bash
+poetry shell
+```
+This command creates a child process that inherits from the parent Shell but will not alter its environment. It encapsulates and restrict any modifications you will perform to your project environment.
+
+If you want, you may install this `cygnss-wetlands` library in editable mode once dependencies have been installed (and your environment is activated) by:
 ```bash
 pip install -e .
 ```
 
-### 5. Some additional tips about Poetry
+### 6. Some additional tips about Poetry
 To add a package to your project using poetry CLI,
 ```bash
 poetry add "[your_package]"
