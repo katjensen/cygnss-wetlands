@@ -4,7 +4,7 @@ A repo dedicated to investigating global inundation patterns with NASA CYGNSS ob
 ---
 ## Installation
 
-This project's environment is managed with Poetry. Learm more about its [basic usage](https://python-poetry.org/docs/basic-usage/)
+This project's dependencies are managed with Poetry. Learm more about its [basic usage](https://python-poetry.org/docs/basic-usage/)
 
 ### 1. Clone Repo
 ```bash
@@ -34,7 +34,7 @@ conda activate cygnss-wetlands
 poetry env use /opt/homebrew/Caskroom/miniconda/base/envs/base-python-3.9/bin/python3
 ```
 
-If you would like (optiona), you can enable the `virtualenvs.in-project option` for this project, e.g. by running in the project root directory:
+If you are not using conda, you might want to enable the `virtualenvs.in-project option` for this project (optional) by running in the project root directory:
 ```
  poetry config virtualenvs.in-project true
 ```
@@ -48,7 +48,7 @@ You can install project dependencies, along with pre-commit git hooks, by:
 make install
 ```
 
-### 5. Activate your envrionment
+### 5. Activate your environment
 If you are NOT using conda to manage your environment, when working on this project (now and in the future), activate your environment by:
 ```bash
 poetry shell
