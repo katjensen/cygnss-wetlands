@@ -40,6 +40,7 @@ class CygnssL1Reader:
         self,
         data_dir: Union[str, Path, None] = CYGNSS_DATA_DIR,
         bbox: Union[Tuple[float, float, float, float], None] = None,
+        near_land: bool = False,
     ):
         """
         Args:
@@ -53,6 +54,7 @@ class CygnssL1Reader:
         """
         self.data_path = Path(data_dir).joinpath(self._product_level, self._product_version)
         self.quality_flags = CONFIG[self._product_level]["quality_flags"]
+        self.near_land = near_land
 
         if bbox:
             self.bbox = box(*bbox)
@@ -157,6 +159,11 @@ class CygnssL1Reader:
                 ]
                 data["poor_quality_for_analysis"] = data[flags_to_screen].sum(axis=1) > 0
                 data = data[~data.poor_quality_for_analysis].reset_index(drop=True)
+
+                # Retain only data over (or near) land -- if specified
+                if self.near_land:
+                    land_mask = data.sp_over_land | data.sp_very_near_land | data.sp_near_land
+                    data = data[land_mask].reset_index(drop=True)
 
             return data
 
@@ -263,7 +270,7 @@ class CygnssL1Reader:
         all_data = pd.concat(all_data, ignore_index=True)
 
         # Get row, cols for grid
-        col_row = all_data.apply(lambda x: grid.lonlat2rc(x.sp_lon, x.sp_lat), axis=1).values
+        col_row = all_data.apply(lambda x: grid.lonlat2cr(x.sp_lon, x.sp_lat), axis=1).values
         all_data[["col", "row"]] = pd.DataFrame(col_row.tolist(), index=all_data.index)
 
         # do fancy bucketting by

@@ -12,7 +12,7 @@ from cygnss_wetlands.grids import GenericGrid
     been used.
 
     Works for EASE-Grid 2.0, should works also for EASE-Grid.
-    
+
     MOTIVATION
         Get row and col coordinates corresponding to the pixel of EASE2 grid with given lon-lat coordinates.
     SUPPORTED GRIDS
@@ -43,9 +43,9 @@ from cygnss_wetlands.grids import GenericGrid
         point_lon = 17.4
         point_lat = 49.4
         # row should be 48, col should be 528
-        col, row = grid.lonlat2rc(lon=point_lon, lat=point_lat)
+        col, row = grid.lonlat2cr(lon=point_lon, lat=point_lat)
         # get lon, lat of the center of the pixel
-        pixel_center_lon, pixel_center_lat = grid.rc2lonlat(col=col, row=row)
+        pixel_center_lon, pixel_center_lat = grid.cr2lonlat(col=col, row=row)
     REFERENCES
         [1] https://nsidc.org/ease/ease-grid-projection-gt
 """
@@ -296,7 +296,7 @@ class EASE2GRID(GenericGrid):
     def __init__(self, grid_type: GridType):
         super().__init__(name=grid_type.name, **SUPPORTED_EASEGRIDS[grid_type])
 
-    def lonlat2rc(self, lon: float, lat: float) -> Tuple[int, int]:
+    def lonlat2cr(self, lon: float, lat: float) -> Tuple[int, int]:
         """
         Convert given geographic coordinates (longitude, latitude) to EASE-grid 2.0 coordinates (col, row)
         """
@@ -310,7 +310,7 @@ class EASE2GRID(GenericGrid):
 
         return col, row
 
-    def rc2lonlat(self, col: int, row: int) -> Tuple[float, float]:
+    def cr2lonlat(self, col: int, row: int) -> Tuple[float, float]:
         """
         Convert given EASE-grid 2.0 coordinates (col, row) to geographic coordinates
             (longitude, latitude) - center of pixel
