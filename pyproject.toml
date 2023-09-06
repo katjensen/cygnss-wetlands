@@ -20,6 +20,8 @@ s3fs = "^2023.3.0"
 tqdm = "^4.65.0"
 pyyaml = "^6.0"
 matplotlib = "^3.7.2"
+imageio = "^2.31.1"
+imageio-ffmpeg = "^0.4.8"
 
 [tool.poetry.group.dev.dependencies]
 black = "^22.3.0"
