@@ -48,11 +48,11 @@ def get_s3_credentials(s3_endpoint: str = "https://archive.podaac.earthdata.nasa
 
 def validate_download(filePath):
     """
-    Occasionally PODAAC will return file fragments indicating "Sorry, the Earthdata Service is currently unavailable."
+    Occasionally PODAAC will return file fragments indicating "Sorry, the Earthdata Service is currently unavailable." See #5.
 
     The file fragments are 95,234 bytes in size.
 
-    Remove these file fragments.
+    Remove the file fragment if detected.
 
     Args:
         filePath (Path)
