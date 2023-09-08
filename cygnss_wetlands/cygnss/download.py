@@ -48,25 +48,26 @@ def get_s3_credentials(s3_endpoint: str = "https://archive.podaac.earthdata.nasa
 
 def validate_download(filePath, newDownload):
     """
-    Occasionally PODAAC will return file fragments indicating "Sorry, the Earthdata Service is currently unavailable." See #5.
+    Occasionally PODAAC will return a system down notification in the form of a file indicating
+    "Sorry, the Earthdata Service is currently unavailable." See #5.
 
-    The file fragments are 95,234 bytes in size.
+    The system down notification files are 95,234 bytes in size.
 
-    Remove the file fragment if detected.
+    Remove the system down notification if detected as this will cause exceptions elsewhere.
 
     Args:
-        filePath (Path)
+        filePath (Path): Complete path to file
         newDownload (bool): Indicates if the file was just downloaded
 
     Returns:
         bool: True if valid file, False if file fragment
     """
     # Size of file fragment indicating the Earthdata Service is unavailable; See #5
-    fileFragmentSize = 95234
+    systemDownNotificationFileSize = 95234
 
     if filePath.exists():
         localFileSize = int(os.path.getsize(filePath))
-        if localFileSize > fileFragmentSize:
+        if localFileSize > systemDownNotificationFileSize:
             return True
         else:
             if newDownload:
