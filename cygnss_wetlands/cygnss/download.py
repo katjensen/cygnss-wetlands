@@ -147,7 +147,8 @@ def http_download_by_date(
                         # Check the file size; if it's not the same, notify the user and overwrite
                         localFileSize = int(os.path.getsize(complete_filepath))
                         sourceFileSize = int(response.headers["Content-Length"])
-                        if localFileSize != sourceFileSize:
+                        # If Earthdata system is down the source file will be smaller than the valid local file
+                        if localFileSize < sourceFileSize:
                             with open(complete_filepath, "wb") as f:
                                 print(
                                     f"Identified data with a local file size ({localFileSize}) different than source ({sourceFileSize}); Redownloading {filename}"
