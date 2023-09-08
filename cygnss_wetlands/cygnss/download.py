@@ -60,7 +60,7 @@ def validate_download(filePath, newDownload):
         newDownload (bool): Indicates if the file was just downloaded
 
     Returns:
-        bool: True if valid file, False if file fragment
+        bool: True if valid file, False if system down notification
     """
     # Size of file fragment indicating the Earthdata Service is unavailable; See #5
     systemDownNotificationFileSize = 95234
