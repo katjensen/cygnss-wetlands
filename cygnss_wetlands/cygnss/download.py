@@ -46,7 +46,7 @@ def get_s3_credentials(s3_endpoint: str = "https://archive.podaac.earthdata.nasa
     return json.loads(results.content)
 
 
-def validate_download(filePath):
+def validate_download(filePath, newDownload):
     """
     Occasionally PODAAC will return file fragments indicating "Sorry, the Earthdata Service is currently unavailable." See #5.
 
@@ -56,6 +56,7 @@ def validate_download(filePath):
 
     Args:
         filePath (Path)
+        newDownload (bool): Indicates if the file was just downloaded
 
     Returns:
         bool: True if valid file, False if file fragment
@@ -68,6 +69,8 @@ def validate_download(filePath):
         if localFileSize > fileFragmentSize:
             return True
         else:
+            if newDownload:
+                print("The Earthdata Service may be currently unavailable.")
             print(f"File fragment detected and removed: {filePath}")
             os.remove(filePath)
             return False
@@ -165,7 +168,7 @@ def http_download_by_date(
             print(f"Could not download file: {filename}, error: {e}")
 
         # After downloading or receiving an error, validate the file isn't a fragment
-        if validate_download(complete_filepath) and downloaded:
+        if validate_download(complete_filepath, downloaded) and downloaded:
             success_download_list.append(dest_dir.joinpath(filename))
 
     return success_download_list
