@@ -1,6 +1,7 @@
 import base64
 import datetime
 import json
+import os.path
 import shutil
 import urllib
 from http.cookiejar import CookieJar
@@ -45,8 +46,39 @@ def get_s3_credentials(s3_endpoint: str = "https://archive.podaac.earthdata.nasa
     return json.loads(results.content)
 
 
+def validate_download(filePath):
+    """
+    Occasionally PODAAC will return file fragments indicating "Sorry, the Earthdata Service is currently unavailable."
+
+    The file fragments are 95,234 bytes in size.
+
+    Remove these file fragments.
+
+    Args:
+        filePath (Path)
+
+    Returns:
+        bool: True if valid file, False if file fragment
+    """
+    # Size of file fragment indicating the Earthdata Service is unavailable
+    fileFragmentSize = 95234
+
+    if filePath.exists():
+        localFileSize = int(os.path.getsize(filePath))
+        if localFileSize > fileFragmentSize:
+            return True
+        else:
+            print(f"File fragment detected and removed: {filePath}")
+            os.remove(filePath)
+            return False
+
+
 def http_download_by_date(
-    product_level: CygnssProductLevel, date: datetime.datetime, dest_dir: Path, overwrite: bool = False
+    product_level: CygnssProductLevel,
+    date: datetime.datetime,
+    dest_dir: Path,
+    overwrite: bool = False,
+    validateFileSize: bool = True,
 ) -> List:
     """
     Download CYGNSS data files to local from PODAAC HTTP site
@@ -93,7 +125,8 @@ def http_download_by_date(
 
         complete_filepath = dest_dir.joinpath(filename)
 
-        if not complete_filepath.exists() or (complete_filepath.exists() and overwrite):
+        if not complete_filepath.exists() or (complete_filepath.exists() and (overwrite or validateFileSize)):
+            downloaded = False
 
             url = f'{config["download"]["http"]}/CYGNSS_{product_level.name}_{config[product_level.name]["product_version"].upper()}/{filename}'
 
@@ -103,18 +136,47 @@ def http_download_by_date(
                 # caught and handled.
                 request = urllib.request.Request(url)
 
-                # save the file
-                with urllib.request.urlopen(request) as response, open(complete_filepath, "wb") as f:
-                    print(f"Downloading: {filename}")
-                    shutil.copyfileobj(response, f)
-                    success_download_list.append(dest_dir.joinpath(filename))
+                with urllib.request.urlopen(request) as response:
+                    # If the file exists and either we're overwriting the data or checking for invalid data
+                    if complete_filepath.exists():
+                        # If overwrite is flagged, automatically overwrite the data
+                        if overwrite:
+                            with open(complete_filepath, "wb") as f:
+                                print(f"Downloading: {filename}")
+                                shutil.copyfileobj(response, f)
+                                downloaded = True
+                        elif validateFileSize:
+                            # Check the file size; if it's not the same, notify the user and overwrite
+                            localFileSize = int(os.path.getsize(complete_filepath))
+                            sourceFileSize = int(response.headers["Content-Length"])
+                            if localFileSize != sourceFileSize:
+                                with open(complete_filepath, "wb") as f:
+                                    print(
+                                        f"Identified data with a local file size ({localFileSize}) different than source ({sourceFileSize}); Redownloading {filename}"
+                                    )
+                                    shutil.copyfileobj(response, f)
+                                    downloaded = True
+                            else:
+                                print(f"Skipping {filename}, valid local copy exists and overwrite not flagged")
+                        else:
+                            # This should never be hit
+                            print(f"Skipping {filename}, local copy exists and overwrite/validate not flagged")
+                    else:
+                        # If the file does not currently exist, download the file
+                        with open(complete_filepath, "wb") as f:
+                            print(f"Downloading: {filename}")
+                            shutil.copyfileobj(response, f)
+                            downloaded = True
 
             except (requests.exceptions.HTTPError, urllib.error.URLError) as e:
-
                 # handle any errors here
                 print(f"Could not download file: {filename}, error: {e}")
 
+            # After downloading or receiving an error, validate the file isn't a fragment
+            if validate_download(complete_filepath) and downloaded:
+                success_download_list.append(dest_dir.joinpath(filename))
+
         else:
-            print(f"Skipping {filename}, local copy exists and overwrite not flagged")
+            print(f"Skipping {filename}, local copy exists and overwrite/validate not flagged")
 
     return success_download_list
