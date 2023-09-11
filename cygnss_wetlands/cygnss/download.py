@@ -1,7 +1,7 @@
 import base64
 import datetime
 import json
-import os.path
+import os
 import shutil
 import urllib
 from http.cookiejar import CookieJar
