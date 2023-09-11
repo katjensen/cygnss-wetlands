@@ -105,10 +105,10 @@ def download(
             os.makedirs(dest_subdir)
 
         # Download all files from this date
-        # TODO: add a log to keep track of files that are downloaded - and any failures
-        filelist = http_download_by_date(product_level, date, dest_subdir, overwrite)
+        successFileList, failedFileList = http_download_by_date(product_level, date, dest_subdir, overwrite)
 
-    print(f"Successfully downloaded: {filelist}")
+    print(f"Successfully downloaded: {successFileList}")
+    print(f"Failed to download: {failedFileList}")
 
 
 def entry():

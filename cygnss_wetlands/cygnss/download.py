@@ -87,6 +87,10 @@ def http_download_by_date(
         product_level (CygnssProductLevel):
         datetime (datetime.datetime)
         dest_dir (Path): Destination download directory
+
+    Returns:
+        success_download_list (List): List of files that were successfully downloaded
+        failed_download_list (List): List of files that failed to download
     """
     password_manager = urllib.request.HTTPPasswordMgrWithDefaultRealm()
     password_manager.add_password(
@@ -111,6 +115,7 @@ def http_download_by_date(
     spacecraft_id_list = np.arange(1, 8 + 1)
 
     success_download_list = []
+    failed_download_list = []
 
     # Attempt to download file for given spacecraft
     # (not all spacecrafts necessarily have data for every day )
@@ -168,9 +173,10 @@ def http_download_by_date(
         except (requests.exceptions.HTTPError, urllib.error.URLError) as e:
             # handle any errors here
             print(f"Could not download file: {filename}, error: {e}")
+            failed_download_list.append(dest_dir.joinpath(filename))
 
         # After downloading or receiving an error, validate the file isn't a fragment
         if validate_download(complete_filepath, downloaded) and downloaded:
             success_download_list.append(dest_dir.joinpath(filename))
 
-    return success_download_list
+    return success_download_list, failed_download_list
