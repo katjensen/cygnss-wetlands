@@ -28,8 +28,8 @@ def generateFigure(figureName, year, month, startDate, endDate, grid):
     snr = reader.aggregate(variable_name="ddm_snr", grid=grid, start_date=d1, end_date=d2)
 
     # Plot
-    bbox_grid_xmin, bbox_grid_ymin = grid.lonlat2rc(reader.xmin, reader.ymin)
-    bbox_grid_xmax, bbox_grid_ymax = grid.lonlat2rc(reader.xmax, reader.ymax)
+    bbox_grid_xmin, bbox_grid_ymin = grid.lonlat2cr(reader.xmin, reader.ymin)
+    bbox_grid_xmax, bbox_grid_ymax = grid.lonlat2cr(reader.xmax, reader.ymax)
 
     fig, ax = plt.subplots(figsize=(6, 6))
     pos = ax.imshow(snr)
@@ -38,7 +38,6 @@ def generateFigure(figureName, year, month, startDate, endDate, grid):
     ax.set_xlim(bbox_grid_xmin, bbox_grid_xmax)
     ax.set_ylim(bbox_grid_ymin, bbox_grid_ymax)
     plt.savefig(figureName)
-    plt.show()
 
 
 def animate(year, startMonth, endMonth):
@@ -51,6 +50,8 @@ def animate(year, startMonth, endMonth):
 
     # Starting with 15 day intervals, will parameterize later
     intervals = [(1, 15), (15, 30)]
+    monthlyIntervals = len(intervals)
+    print(monthlyIntervals)
 
     for month in range(startMonth, endMonth + 1):
         for dateInterval in intervals:
@@ -75,8 +76,30 @@ def animate(year, startMonth, endMonth):
     for file_name in frames:
         images.append(imageio.imread(file_name))
 
-    gif_path = "DDM_SNR_" + str(year) + f"{startMonth:02}" + "-" + str(year) + f"{endMonth:02}" + ".gif"
+    gif_path = (
+        "DDM_SNR_"
+        + str(year)
+        + f"{startMonth:02}"
+        + "-"
+        + str(year)
+        + f"{endMonth:02}"
+        + "_"
+        + str(monthlyIntervals)
+        + ".gif"
+    )
     imageio.mimsave(gif_path, images)
 
 
 # print(frames)
+animate(2021, 4, 6)
+
+
+# TODO:
+# 1. Figure out why the second figure always uses a tight border
+# 2. Determine max & min of data prior to generating figures & have that be common throughout the animation
+# 3. Save to organized file structure
+# 4. Read from file structure if the figure already exists & use if so
+#
+# Asks:
+# 1. What do you think about these white pixels?
+# 2. What file format would you prefer? GIF? MOV? MP4? Would be good to slow FPS, so maybe mp4
