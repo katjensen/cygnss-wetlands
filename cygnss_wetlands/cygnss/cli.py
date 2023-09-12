@@ -94,6 +94,9 @@ def download(
     # Iterate over each date
     date_list = [start_date + datetime.timedelta(days=x) for x in range((end_date - start_date).days + 1)]
 
+    successful_downloads = []
+    failed_downloads = []
+
     for date in date_list:
 
         # Organize destination subfolder, change current work directory to this
@@ -105,10 +108,13 @@ def download(
             os.makedirs(dest_subdir)
 
         # Download all files from this date
-        # TODO: add a log to keep track of files that are downloaded - and any failures
-        filelist = http_download_by_date(product_level, date, dest_subdir, overwrite)
+        successFileList, failedFileList = http_download_by_date(product_level, date, dest_subdir, overwrite)
 
-    print(f"Successfully downloaded: {filelist}")
+        successful_downloads.extend(fileName for fileName in successFileList)
+        failed_downloads.extend(fileName for fileName in failedFileList)
+
+    print(f"Successfully downloaded: {successful_downloads}")
+    print(f"Failed to download: {failed_downloads}")
 
 
 def entry():
