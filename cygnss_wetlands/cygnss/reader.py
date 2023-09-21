@@ -11,6 +11,8 @@ from netCDF4 import Dataset
 from shapely.geometry import box
 from tqdm import tqdm
 
+from cygnss_wetlands.cygnss.aggregate import AGGREGATION_METHODS
+from cygnss_wetlands.enums import AggregationMethod
 from cygnss_wetlands.grids import GenericGrid
 from cygnss_wetlands.utils.constants import CYGNSS_WAVELENGTH_M, DEFAULT_CYGNSS_BBOX
 from cygnss_wetlands.utils.radar import amplitude2db
@@ -233,16 +235,13 @@ class CygnssL1Reader:
         grid: GenericGrid,
         start_date: datetime.datetime,
         end_date: datetime.datetime,
+        method: AggregationMethod = AggregationMethod.InverseDistance,
     ) -> np.ndarray:
         """
         For now, implement "drop in the bucket" style aggregation over specified date range
 
         Returns:
             2D np.ndarray gridded representation of specified DDM observable values over a period of time
-
-        TODO: Add inverse-distance weighted (IDW) implementation
-
-        TODO: Add option to write out as GeoTIFF ?
 
         TODO: Add additiional constraints of interest? (e.g. restrict to certain spacecraft? )
         """
@@ -256,36 +255,11 @@ class CygnssL1Reader:
             df = self.read_file(filename)
             if not df.empty:
                 all_data.append(df)
-        """
-        for date in date_list:
-
-            # Find all files associated with a given date
-            for filename in self.daily_filelist(date):
-                df = self.read_file(filename)
-                if not df.empty:
-                    all_data.append(df)
-        """
 
         # Concatenate data from all spacecrafts over all dates in window
         all_data = pd.concat(all_data, ignore_index=True)
 
-        # Get row, cols for grid
-        col_row = all_data.apply(lambda x: grid.lonlat2cr(x.sp_lon, x.sp_lat), axis=1).values
-        all_data[["col", "row"]] = pd.DataFrame(col_row.tolist(), index=all_data.index)
+        # Apply aggregation method and get gridded array !
+        aggregated_grid = AGGREGATION_METHODS[method](data=all_data, grid=grid, variable_name=variable_name)
 
-        # do fancy bucketting by
-        _, idx, inv, counts = np.unique(col_row, return_index=True, return_inverse=True, return_counts=True)
-        unique_coords = col_row[idx]
-        unique_col, unique_row = zip(*unique_coords)
-
-        # now sum the values of s0 corresponding to each inv index value
-        sum_values = np.bincount(inv, weights=all_data[variable_name])
-
-        sum_grid = np.full((grid.n_rows, grid.n_cols), np.nan, dtype=np.float32)
-        sum_grid[unique_row, unique_col] = sum_values
-
-        count_grid = np.full((grid.n_rows, grid.n_cols), np.nan, dtype=np.float32)
-        count_grid[unique_row, unique_col] = counts
-
-        # return aggregated grid values !
-        return sum_grid / count_grid
+        return aggregated_grid
