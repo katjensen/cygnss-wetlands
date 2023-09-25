@@ -2,20 +2,30 @@ import datetime
 import glob
 import os
 from pathlib import Path
-from typing import Dict, Tuple, Union
+from typing import Dict, Iterable, Tuple, Union
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
+import shapely
 import yaml
 from netCDF4 import Dataset
-from shapely.geometry import box
 from tqdm import tqdm
 
 from cygnss_wetlands.cygnss.aggregate import AGGREGATION_METHODS
 from cygnss_wetlands.enums import AggregationMethod
 from cygnss_wetlands.grids import GenericGrid
-from cygnss_wetlands.utils.constants import CYGNSS_WAVELENGTH_M, DEFAULT_CYGNSS_BBOX
-from cygnss_wetlands.utils.radar import amplitude2db
+from cygnss_wetlands.utils.constants import (
+    CYGNSS_DISTANCE_TRAVELLED_IT_KM,
+    CYGNSS_WAVELENGTH_M,
+    DEFAULT_CYGNSS_BBOX,
+    EARTH_RADIUS_KM,
+)
+from cygnss_wetlands.utils.radar import (
+    amplitude2db,
+    get_along_track_size,
+    get_cross_track_size,
+)
 
 # Ingest Cygnss config file
 config_path = Path(__file__).resolve().parent / "config.yaml"
@@ -59,9 +69,9 @@ class CygnssL1Reader:
         self.near_land = near_land
 
         if bbox:
-            self.bbox = box(*bbox)
+            self.bbox = shapely.geometry.box(*bbox)
         else:
-            self.bbox = box(*DEFAULT_CYGNSS_BBOX)
+            self.bbox = shapely.geometry.box(*DEFAULT_CYGNSS_BBOX)
 
         self.xmin = min(self.bbox.boundary.xy[0])
         self.ymin = min(self.bbox.boundary.xy[1])
@@ -90,6 +100,7 @@ class CygnssL1Reader:
             nc_fid = Dataset(file_path, "r")
             # print(f"READING: {file_path.name}")
 
+            spacecraft_num = int(nc_fid.variables["spacecraft_num"][:].item())
             sample_ids = self.read_variable(nc_fid, "sample")  # this is a vector of each sample ID
             ddm_ids = self.read_variable(nc_fid, "ddm")  # this will always be len=4, (0, 1, 2, 3)
 
@@ -102,6 +113,7 @@ class CygnssL1Reader:
             #  --> Retaining sequential sample order will help with some additional derivation down the road!
             #   (e.g. orbit direction)
             data = {}
+            data["spacecraft_num"] = np.repeat(spacecraft_num, len(sample_ids) * len(ddm_ids))
             data["sample_id"] = np.repeat(sample_ids[:, np.newaxis], len(ddm_ids), axis=1).ravel(order="F")
             data["ddm_id"] = np.repeat(ddm_ids, len(sample_ids))
 
@@ -125,6 +137,25 @@ class CygnssL1Reader:
                 & (data["sp_lat"] <= self.ymax)
             )
             data = data[bbox_mask].reset_index(drop=True)
+
+            # Estimate DDM footprint geometries
+            data["along_track_m"] = data.apply(
+                lambda x: get_along_track_size(
+                    incindence_angle_deg=x.sp_inc_angle, r_rx=x.rx_to_sp_range, r_tx=x.tx_to_sp_range
+                ),
+                axis=1,
+            ).astype("float32")
+
+            data["cross_track_m"] = data.apply(
+                lambda x: get_cross_track_size(r_rx=x.rx_to_sp_range, r_tx=x.tx_to_sp_range), axis=1
+            ).astype("float32")
+
+            data["semimajor_axis"] = np.rad2deg(
+                ((data["along_track_m"] + CYGNSS_DISTANCE_TRAVELLED_IT_KM * 1000) / 2) / (EARTH_RADIUS_KM * 1000)
+            )
+            data["semiminor_axis"] = np.rad2deg((data["cross_track_m"] / 2.0) / (EARTH_RADIUS_KM * 1000))
+            data["bearing"] = self.estimate_ddm_bearing(data)
+            data["footprint"] = data.apply(lambda x: self._calculate_ellipse_footprint(x), axis=1)
 
             # Check if any data available (may not be any after bbox filtering !)
             if np.sum(bbox_mask) > 0:
@@ -209,6 +240,129 @@ class CygnssL1Reader:
         mask = lon > 180
         lon[mask] = lon[mask] - 360.0
         return lon
+
+    @staticmethod
+    def get_bearing(lat1, lon1, lat2, lon2):
+        """Estimate bearing (degrees) between two points"""
+        lat1, lon1, lat2, lon2 = map(np.deg2rad, (lat1, lon1, lat2, lon2))
+        x = np.cos(lat2) * np.sin(lon2 - lon1)
+        y = np.cos(lat1) * np.sin(lat2) - np.sin(lat1) * np.cos(lat2) * np.cos(lon2 - lon1)
+        return np.rad2deg(np.arctan2(x, y))
+
+    @staticmethod
+    def _calculate_ellipse_footprint(x):
+        """For a given point - get footprint ellipse geometry based on:
+        - centroid (specular point)
+        - semi-axes (major and minor)
+        - angle of rotation (degrees)
+        """
+        try:
+            # 1st elem = center point (x,y) coordinates
+            # 2nd elem = the two semi-axis values (along x, along y)
+            # 3rd elem = angle in degrees between x-axis of the Cartesian base
+            #            and the corresponding semi-axis
+            ellipse = ((x.sp_lon, x.sp_lat), (x.semimajor_axis, x.semiminor_axis), x.bearing)
+            circ = shapely.geometry.Point(ellipse[0]).buffer(1)
+
+            # Let create the ellipse along x and y:
+            ell = shapely.affinity.scale(circ, ellipse[1][0], ellipse[1][1])
+
+            # And rotate - clockwise along an upward pointing x axis:
+            return shapely.affinity.rotate(ell, 90 - ellipse[2])
+
+        except:
+            print(f"Error forming ellipse: {ellipse}")
+            return None
+
+    def estimate_ddm_bearing(self, data: pd.DataFrame) -> np.ndarray:
+        """Estimate the angle (degrees) at which a given DDM footprint"""
+        bearing = np.zeros(len(data), dtype="float32")  # intialize an empty array
+
+        # Adjust track_id so that is unique for each file
+        data["track_id"] += data["spacecraft_num"] * 1000
+
+        # Iterate over each unique track
+        for track in data.track_id.unique():
+            track_mask = data.track_id == track
+
+            # We need at least two points inside a track to estimate the direction of movement
+            if np.sum(track_mask) > 1:
+                orbit_id = self.determine_orbit_id(data.sp_lat[track_mask].values)
+                unique_orbits = np.unique(orbit_id)
+                track_bearing = np.full(np.sum(track_mask), 0, dtype="float32")
+
+                # Iterate over each ascending and descending pass (orbit) within track
+                for orb in unique_orbits:
+                    orbit_mask = orbit_id == orb
+                    sub_bearing = np.full(np.sum(orbit_mask), 0, dtype="float32")
+
+                    # Get best guess for end points
+                    sub_bearing[0] = self.get_bearing(
+                        lat1=data.sp_lat[track_mask][orbit_mask].iloc[0],
+                        lon1=data.sp_lon[track_mask][orbit_mask].iloc[0],
+                        lat2=data.sp_lat[track_mask][orbit_mask].iloc[1],
+                        lon2=data.sp_lon[track_mask][orbit_mask].iloc[1],
+                    )
+                    sub_bearing[-1] = self.get_bearing(
+                        lat1=data.sp_lat[track_mask][orbit_mask].iloc[-2],
+                        lon1=data.sp_lon[track_mask][orbit_mask].iloc[-2],
+                        lat2=data.sp_lat[track_mask][orbit_mask].iloc[-1],
+                        lon2=data.sp_lon[track_mask][orbit_mask].iloc[-1],
+                    )
+
+                    # Estimate all points in between based on previous and following pt
+                    lat1 = data.sp_lat[track_mask][orbit_mask].iloc[:-2].values
+                    lon1 = data.sp_lon[track_mask][orbit_mask].iloc[:-2].values
+                    lat2 = data.sp_lat[track_mask][orbit_mask].iloc[2:].values
+                    lon2 = data.sp_lon[track_mask][orbit_mask].iloc[2:].values
+
+                    sub_bearing[1:-1] = self.get_bearing(lat1, lon1, lat2, lon2)
+                    track_bearing[orbit_mask] = sub_bearing
+
+                bearing[track_mask] = track_bearing
+
+            # otherwise, not enough points to estimate bearing
+            else:
+                bearing[track_mask] = np.nan
+
+        return bearing
+
+    @staticmethod
+    def write_footprint_to_geojson(
+        data: pd.DataFrame, out_filepath: Path, cols_to_write: Iterable = ["ddm_snr", "geometry"]
+    ):
+        # Convert dataframe to geodataframe
+        gdf = gpd.GeoDataFrame(data, geometry=data.footprint, crs="EPSG:4326")
+
+        # Write out to file
+        gdf[cols_to_write].to_file(out_filepath, index=False)
+
+    @staticmethod
+    def determine_orbit_id(latitude: np.ndarray):
+        orbit_id = np.zeros(latitude.shape, dtype=np.int8)
+
+        # Define starting pass direction
+        o = 0
+        if latitude[0] < latitude[1]:
+            prev_pass = "asc"
+        else:
+            prev_pass = "dsc"
+
+        # Iterate over each spacecraft lat, and check if +/- previous one
+        for s in range(len(latitude) - 1):
+            if latitude[s] < latitude[s + 1]:
+                current_pass = "dsc"
+            else:
+                current_pass = "asc"
+
+            if prev_pass != current_pass:  # Orbit complete
+                o += 1
+                prev_pass = current_pass
+
+            orbit_id[s] = o
+
+        orbit_id[-1] = np.max(orbit_id)
+        return orbit_id
 
     def apply_snr_correction(self, ddm_snr, range_rx, range_tx, power_tx, gain_rx, gain_tx):
         """

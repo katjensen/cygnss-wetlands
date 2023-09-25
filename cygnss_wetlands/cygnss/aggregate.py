@@ -7,7 +7,7 @@ import pandas as pd
 from cygnss_wetlands.enums import AggregationMethod
 from cygnss_wetlands.grids import GenericGrid
 from cygnss_wetlands.utils.constants import (
-    CYGNSS_DISTANCE_THRESHOLD_KM,
+    CYGNSS_IDW_DISTANCE_THRESHOLD_KM,
     EARTH_RADIUS_KM,
 )
 
@@ -60,7 +60,7 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 
 def get_nearby_gridcells(grid: GenericGrid, r: int, c: int) -> Tuple[np.ndarray, np.ndarray]:
-    n_neighbors = int(np.ceil(grid.res / (CYGNSS_DISTANCE_THRESHOLD_KM * 1000)))
+    n_neighbors = int(np.ceil(grid.res / (CYGNSS_IDW_DISTANCE_THRESHOLD_KM * 1000)))
 
     rows = [r]
     cols = [c]
@@ -110,7 +110,7 @@ def inverse_distance(data: pd.DataFrame, grid: GenericGrid, variable_name: str) 
         )
 
     # to populate a gridcell, only consider values within this distance threshold
-    dist_threshold_m = CYGNSS_DISTANCE_THRESHOLD_KM * 1000  #
+    dist_threshold_m = CYGNSS_IDW_DISTANCE_THRESHOLD_KM * 1000  # in meters
 
     # Get row, cols for grid
     col_row = data.apply(lambda x: grid.lonlat2cr(x.sp_lon, x.sp_lat), axis=1).values
