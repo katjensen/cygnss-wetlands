@@ -227,6 +227,48 @@ class CygnssL1Reader:
         daily_subdir = self.data_path.joinpath(str(date.year), "{:02d}".format(date.month), "{:02d}".format(date.day))
         return daily_subdir.glob("*.nc")
 
+    def metadata(
+        self, variable_name: str, grid: GenericGrid, start_date: datetime.datetime, end_date: datetime.datetime
+    ):
+        """
+        Read and return metadata for the given variable_name over the duration of start_date to end_date
+
+        Args:
+            self
+            variable_name (str): The variable name you are requesting metadata on
+            grid (GenericGrid): No effect         TODO: Only read data over grid
+            startDate (datetime.datetime): The start date for the data to generate metadata for
+            endDate (datetime.datetime): The end date for the data to generate metadata for
+
+        Returns:
+            Dict: metadata dictionary containing:
+            - 'data': The full data of variable_name over the timerange between startDate and endDate
+            - 'mean' (float): The mean of the variable_name over the timerange between startDate and endDate
+            - 'max' (float): The max of the variable_name over the timerange between startDate and endDate
+            - 'min' (float): The min of the variable_name over the timerange between startDate and endDate
+            - 'std' (float): The standard deviation of the variable_name over the timerange between startDate and endDate
+        """
+        # Read all data over requested dates (inclusive of end_date)
+        all_data = []
+        date_list = [start_date + datetime.timedelta(days=x) for x in range((end_date - start_date).days + 1)]
+
+        file_list = [filename for date in date_list for filename in self.daily_filelist(date)]
+        for filename in tqdm(file_list):
+            df = self.read_file(filename)
+            if not df.empty:
+                all_data.append(df)
+
+        # Concatenate data from all spacecrafts over all dates in window
+        all_data = pd.concat(all_data, ignore_index=True)
+        metadata = {
+            "data": all_data[variable_name],
+            "mean": all_data[variable_name].mean(),
+            "max": all_data[variable_name].max(),
+            "min": all_data[variable_name].min(),
+            "std": all_data[variable_name].std(),
+        }
+        return metadata
+
     def aggregate(
         self,
         variable_name: str,

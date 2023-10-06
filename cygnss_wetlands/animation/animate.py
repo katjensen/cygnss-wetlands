@@ -1,30 +1,91 @@
+import calendar
 import datetime
+from pathlib import Path
 
+import imageio
 import matplotlib.pyplot as plt
+import numpy as np
 
 from cygnss_wetlands.cygnss.reader import CONFIG, CygnssL1Reader
 from cygnss_wetlands.enums import GridType
 from cygnss_wetlands.grids.ease import EASE2GRID
 
-# Create our reader object
-
-# Note: ingestion is a lot faster if we limit it to a smaller geopgraphic area of interest
-# (this is optional! The default is the full extent of CYGNSS mission range)
+# Animation script currently only supports Pacaya Samiria
 PACAYA_SAMIRIA_BBOX = (-77, -7, -73, -3)  # xmin, ymin, xmax, ymax
-
 reader = CygnssL1Reader(bbox=PACAYA_SAMIRIA_BBOX)
 
-# Let's pick a grid we can aggregate/post our data to
 
-# Here's a list of what is supported currently
-# (custom grids can also be made! and more functionality is planned to be added!)
-GridType.namelist()
+def genDistribution(data, filename: str, variable_name: str):
+    """
+    Generates a histogram distribution of the variable name in provided data
+
+    Args:
+        data:
+        filename (str): Name of ouptut file
+        variable_name (str): Name of variable to generate the distribution of from the data variable
+
+    Returns:
+        None: Saves histogram figure to filename
+    """
+    plt.hist(data, bins=30)
+    plt.title("Histogram")
+    plt.xlabel(variable_name)
+    plt.ylabel("Frequency")
+    plt.savefig(filename)
 
 
-def generateFigure(figureName, year, month, startDate, endDate, grid):
+def createMonthlyIntervals(year: int, month: int, numIntervals: int):
+    """
+    Outputs a list of intervals for the given month
+
+    Args:
+        year (int): The year you wish to create monthly intervals for
+        month (int): The month you wish to create monthly intervals for
+        numIntervals (int): The number of intervals you want in the month
+
+    Returns:
+        list of tuples: A list of tuples of length numIntervals containing non-overlapping dates for the given month
+
+    Example:
+        >>> intervals = createMonthlyIntervals(year=2023, month=1, numIntervals=2)
+        >>> print(intervals)
+        [(1, 15), (16, 31)]
+    """
+    monthIntervals = []
+    numDays = calendar.monthrange(year, month)[1]
+    daysPerInterval = numDays // numIntervals
+    for i in range(numIntervals):
+        intervalStart = 1 + (i * daysPerInterval)
+        intervalEnd = (i + 1) * daysPerInterval
+        if i == numIntervals - 1:
+            intervalEnd += numDays % numIntervals
+        monthIntervals.append((intervalStart, intervalEnd))
+    return monthIntervals
+
+
+def generateFigure(
+    figureName: str, year: int, month: int, startDate: int, endDate: int, grid: GridType, max: float, min: float
+):
+    """
+    Creates and saves a figure to figureName for the given year, month, and date range on the prescribed grid.
+
+    Args:
+        figureName (str): The filename to save the figure to
+        year (int): The year in numerical format the figure is representing
+        month (int): The month in numerical format the figure is representing
+        startDate (int): The start date of the month in numerical format the figure is representing
+        endDate (int): The end date of the month in numerical format the figure is representing
+        grid (GridType): The EASE2 GridType to bin data in for the figure
+        max (float): The maximum value of the colorbar
+        min (float): The minimum value of the colorbar
+
+    Returns:
+        None: Saves figure to figureName
+    """
     d1 = datetime.datetime(year, month, startDate)
     d2 = datetime.datetime(year, month, endDate)
 
+    # TODO: Parameterize variable_name
     snr = reader.aggregate(variable_name="ddm_snr", grid=grid, start_date=d1, end_date=d2)
 
     # Plot
@@ -32,74 +93,163 @@ def generateFigure(figureName, year, month, startDate, endDate, grid):
     bbox_grid_xmax, bbox_grid_ymax = grid.lonlat2cr(reader.xmax, reader.ymax)
 
     fig, ax = plt.subplots(figsize=(6, 6))
-    pos = ax.imshow(snr)
-    fig.colorbar(pos, ax=ax)
+
+    cmap = plt.get_cmap("viridis")
+    no_data_color = "gray"
+    cmap.set_bad(color=no_data_color)
+
+    pos = ax.imshow(snr, cmap=cmap, vmin=min, vmax=max)
+    plt.colorbar(pos, ax=ax, label="DDM SNR")
+
+    # Create a legend for missing data
+    handles = [plt.Rectangle((0, 0), 1, 1, color="gray")]
+    labels = ["No Data"]
+    plt.legend(handles, labels)
+
     ax.set_title(f"DDM_SNR {d1.strftime('%Y-%m-%d')} to {d2.strftime('%Y-%m-%d')} grid={grid.name}")
     ax.set_xlim(bbox_grid_xmin, bbox_grid_xmax)
     ax.set_ylim(bbox_grid_ymin, bbox_grid_ymax)
+
+    # Convert EASE2.0 coordinates to Lat/Long
+    latitudes = [latitude for latitude in range(int(reader.ymin), int(reader.ymax) + 1)]
+    longitudes = [longitude for longitude in range(int(reader.xmin), int(reader.xmax) + 1)]
+
+    y_ticks = [grid.lat2r(lat) for lat in latitudes]
+    x_ticks = [grid.lon2c(lon) for lon in longitudes]
+
+    yticks = []
+    for latitude in latitudes:
+        if latitude > 0:
+            yticks.append(f"{abs(latitude)}°N")
+        elif latitude < 0:
+            yticks.append(f"{abs(latitude)}°S")
+        else:
+            yticks.append(f"{abs(latitude)}°")
+
+    xticks = []
+    for longitude in longitudes:
+        if latitude > 0:
+            xticks.append(f"{abs(longitude)}°E")
+        elif latitude < 0:
+            xticks.append(f"{abs(longitude)}°W")
+        else:
+            xticks.append(f"{abs(longitude)}°")
+
+    # Set the ticks on the X & Y axis to be the representative long/lat coordinates
+    ax.set_xticks(x_ticks, xticks)
+    ax.set_yticks(y_ticks, yticks)
+
     plt.savefig(figureName)
 
 
-def animate(year, startMonth, endMonth):
-    import imageio
+def animate(
+    startDate: datetime,
+    endDate: datetime,
+    monthlyIntervals: int = 2,
+    frameDuration: int = 1000,
+    gridType: GridType = GridType.EASE2_G9km,
+    generateDistribution: bool = False,
+):
+    """
+    Creates and saves a GIF animation by creating monthlyIntervals of figures per month from the startDate to endDate.
 
-    frames = []
+    Args:
+        startDate (datetime): Start date of animation. Animation will begin at the beginning of the selected month.
+        endDate (datetime): End date of animation. Animation will end at the end of the selected month.
+        monthlyIntervals (int): Number of frames per month of animation (default=2)
+        frameDuration (int): ms between frames (default=1000)
+        gridType (GridType): EASE2 GridType describing size of pixel footprint (default=EASE2_G9km)
+        generateDistribution (bool): Boolean to generate a histogram of the dataset (default=False)
 
-    # Starting with 9km grid, will parameterize later
-    grid = EASE2GRID(GridType.EASE2_G9km)
+    Returns:
+        None: Saves GIF animation to DDM_SNR_YYYYMMDD(start)-YYYMMDD(end)_gridResolutioN.gif
+    """
 
-    # Starting with 15 day intervals, will parameterize later
-    intervals = [(1, 15), (15, 30)]
-    monthlyIntervals = len(intervals)
-    print(monthlyIntervals)
+    figures = []
+    grid = EASE2GRID(gridType)
 
-    for month in range(startMonth, endMonth + 1):
-        for dateInterval in intervals:
-            figName = (
-                "DDM_SNR_"
-                + str(year)
-                + f"{month:02}"
-                + f"{dateInterval[0]:02}"
-                + "-"
-                + str(year)
-                + f"{month:02}"
-                + f"{dateInterval[1]:02}"
-                + ".png"
-            )
-            generateFigure(figName, year, month, dateInterval[0], dateInterval[1], grid)
-            frames.append(figName)
-
-    # frames = ["10120-11520.png","11520-13020.png"]
-
-    # frames = ["DDM_SNR_20200101-20200115.png", "DDM_SNR_20200115-20200130.png"]
-    images = []
-    for file_name in frames:
-        images.append(imageio.imread(file_name))
-
-    gif_path = (
+    file_base = (
         "DDM_SNR_"
-        + str(year)
-        + f"{startMonth:02}"
+        + str(startDate.year)
+        + f"{startDate.month:02}"
         + "-"
-        + str(year)
-        + f"{endMonth:02}"
+        + str(endDate.year)
+        + f"{endDate.month:02}"
+        + "_"
+        + str(int(grid.res))
         + "_"
         + str(monthlyIntervals)
-        + ".gif"
     )
-    imageio.mimsave(gif_path, images)
+
+    gif_name = file_base + ".gif"
+    gif_path = Path("./" + gif_name)
+
+    if not gif_path.exists():
+        print(f"Generating Animation {gif_name}")
+        # Collect metadata on the requested variable
+        metadata = reader.metadata(variable_name="ddm_snr", grid=grid, start_date=startDate, end_date=endDate)
+        min = 0
+        # Select only the top 99% of data to extract outliers; used for the colorbar max
+        max = np.nanpercentile(metadata["data"], 99)
+
+        if generateDistribution:
+            distribution_file = file_base + "_dist.png"
+            genDistribution(metadata["data"], distribution_file, "ddm_snr")
+
+        currentDate = startDate
+        # Iterate through each month of the animation
+        while currentDate < endDate:
+            monthIntervals = createMonthlyIntervals(currentDate.year, currentDate.month, monthlyIntervals)
+
+            # Create a figure for each interval of the month
+            for dateInterval in monthIntervals:
+                # TODO: Include either max DDM SNR or date range in filename to prevent anomalous colorbar range
+                figName = (
+                    "DDM_SNR_"
+                    + str(currentDate.year)
+                    + f"{currentDate.month:02}"
+                    + f"{dateInterval[0]:02}"
+                    + "-"
+                    + str(currentDate.year)
+                    + f"{currentDate.month:02}"
+                    + f"{dateInterval[1]:02}"
+                    + "_"
+                    + f"{str(int(grid.res))}"
+                    + ".png"
+                )
+                figPath = Path(figName)
+                if not figPath.exists():
+                    print(f"Generating Figure {figName}")
+                    generateFigure(
+                        figName, currentDate.year, currentDate.month, dateInterval[0], dateInterval[1], grid, max, min
+                    )
+                else:
+                    print(f"Figure Previously Generated {figName}")
+                figures.append(figName)
+
+            # Increment the current month
+            if currentDate.month == 12:
+                currentDate = datetime.datetime(currentDate.year + 1, 1, 1)
+            else:
+                currentDate = datetime.datetime(currentDate.year, currentDate.month + 1, 1)
+
+        # Create frames of animation
+        frames = []
+        frameDurations = []
+        for file_name in figures:
+            frames.append(imageio.v3.imread(file_name))
+            frameDurations.append(frameDuration)
+        # Save gif
+        imageio.mimsave(gif_path, frames, duration=frameDurations)
+    else:
+        print(f"Animation Previously Generated {gif_name}")
 
 
-# print(frames)
-animate(2021, 4, 6)
-
+startDate = datetime.datetime(2023, 1, 1)
+endDate = datetime.datetime(2023, 1, 30)
+animate(startDate, endDate, gridType=GridType.EASE2_G9km)
 
 # TODO:
-# 1. Figure out why the second figure always uses a tight border
-# 2. Determine max & min of data prior to generating figures & have that be common throughout the animation
-# 3. Save to organized file structure
-# 4. Read from file structure if the figure already exists & use if so
-#
-# Asks:
-# 1. What do you think about these white pixels?
-# 2. What file format would you prefer? GIF? MOV? MP4? Would be good to slow FPS, so maybe mp4
+# 1. Save to organized file structure
+# 2. Run via command line
+# 3. Notebook version

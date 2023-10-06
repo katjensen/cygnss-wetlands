@@ -296,6 +296,74 @@ class EASE2GRID(GenericGrid):
     def __init__(self, grid_type: GridType):
         super().__init__(name=grid_type.name, **SUPPORTED_EASEGRIDS[grid_type])
 
+    def c2lon(self, c: float) -> int:
+        """
+        Convert given EASE-grid 2.0 column coordinate to longitude coordinate
+
+        Args:
+            self
+            c (float): EASE-grid 2.0 column coordinate
+
+        Returns:
+            int: Longitude coordinate corresponding to given EASE-grid 2.0 column coordinate
+        """
+        # calculate x coordinate
+        x = self.x_min + c * self.res + self.res / 2
+        # Only need X coordinate, set y to 0
+        y = 0
+        lon, lat = self.proj(x, y, inverse=True)
+
+        return lon
+
+    def r2lat(self, r: float) -> int:
+        """
+        Convert given EASE-grid 2.0 row coordinate to latitude coordinate
+
+        Args:
+            self
+            r (float): EASE-grid 2.0 row coordinate
+
+        Returns:
+            int: Latitude coordinate corresponding to given EASE-grid 2.0 row coordinate
+        """
+        # Only need Y coordinate, set x to 0
+        x = 0
+        # calculate y coordinate
+        y = self.y_max - r * self.res - self.res / 2
+        lon, lat = self.proj(x, y, inverse=True)
+
+        return lat
+
+    def lon2c(self, lon: float) -> int:
+        """
+        Convert given longitude coordinate to EASE-grid 2.0 column coordinate
+
+        Args:
+            self
+            lon (float): Longitude coordinate
+
+        Returns:
+            int: EASE-grid 2.0 column coordinate corresponding to given longitude coordinate
+        """
+        x, y = self.proj(lon, 0)
+        col = int(abs(x - self.x_min) / self.res)
+        return col
+
+    def lat2r(self, lat: float) -> int:
+        """
+        Convert given latitude coordinate to EASE-grid 2.0 row coordinate
+
+        Args:
+            self
+            lat (float): Latitude coordinate
+
+        Returns:
+            int: EASE-grid 2.0 row coordinate corresponding to given latitude coordinate
+        """
+        x, y = self.proj(0, lat)
+        row = int(abs(y - self.y_max) / self.res)
+        return row
+
     def lonlat2cr(self, lon: float, lat: float) -> Tuple[int, int]:
         """
         Convert given geographic coordinates (longitude, latitude) to EASE-grid 2.0 coordinates (col, row)
