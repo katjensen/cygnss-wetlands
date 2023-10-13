@@ -44,19 +44,26 @@ def drop_in_bucket(data: pd.DataFrame, grid: GenericGrid, variable_name: str) ->
     return sum_grid / count_grid
 
 
-def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+def haversine(lat1: float, lon1: float, lat2: float, lon2: float, prohibit_zero_distance: bool = True) -> float:
     """
     Estimate distance between two points (lon/lat), given coordinates in degrees
 
     Returns:
         distance, in meters
     """
+
     # convert all latitudes/longitudes from decimal degrees to radians
     lat1, lon1, lat2, lon2 = map(np.radians, (lat1, lon1, lat2, lon2))
     delta_lat = lat2 - lat1
     delta_lon = lon2 - lon1
     a = np.square(np.sin(delta_lat / 2.0)) + np.cos(lat1) * np.cos(lat2) * np.square(np.sin(delta_lon / 2.0))
-    return 2.0 * np.arctan2(np.sqrt(a), np.sqrt(1.0 - a)) * EARTH_RADIUS_KM * 1000
+    distance = 2.0 * np.arctan2(np.sqrt(a), np.sqrt(1.0 - a)) * EARTH_RADIUS_KM * 1000
+
+    # If we want to avoid an estimated distance of zero (in case two points are identical ? ), add a tiny nominal amount
+    if (distance == 0) and prohibit_zero_distance:
+        distance += 1e-6
+
+    return distance
 
 
 def get_nearby_gridcells(grid: GenericGrid, r: int, c: int) -> Tuple[np.ndarray, np.ndarray]:
