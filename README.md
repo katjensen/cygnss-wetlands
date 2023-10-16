@@ -99,9 +99,9 @@ Not Implemented: Aggregating CYGNSS L1 data to a regular grid and write to file
 ## Remaining To-Do List
 There are components of previous work that are still being added here - plus some valuable upgrades - in the works!
 
-1. Extracting estimated footprint geometries for each specular point (as vector)
+1. Logging and unit testing
 2. Custom DDM observables derived from BRCS (e.g. leading and trailing edge slope)
 3. Upgrade Download tool to pull from HTTP site to AWS S3 and Reader infrastructure to read from the cloud (switch to using xarray !) - this would help us not have to download all data files locally (but last I checked-- this was still only available to users in aws-west-2 region)
 4. Add support for additional grid types (e.g. UTM, Geographic Coordinates) - currently only support EASEGRIDs
-5. Add option to aggregate() for writing out to file - and add CLI support
+5. Add CLI support to aggregate() for writing out to file
 6. Sentinel-1 and PALSAR-2 support -- needs scoping !

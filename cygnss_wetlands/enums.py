@@ -25,6 +25,11 @@ class CygnssProductLevel(ExtendedEnum):
     L3 = 3
 
 
+class AggregationMethod(ExtendedEnum):
+    DropInBucket = enum.auto()
+    InverseDistance = enum.auto()
+
+
 class GridType(ExtendedEnum):
     EASE2_G1km = enum.auto()
 
