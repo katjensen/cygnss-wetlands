@@ -36,10 +36,19 @@ def genDistribution(data, filename: str, variable_name: str):
 
 def generateAnimationFileStructure(destination_dir: Path = Path("./")):
     """
-    Generates file structure for a chart
-    .charts
-    -> year
-        -> Month
+    Generates the file structure for animations. This includes a directory 'animations' to store the outputted animations and
+    a hidden directory '.figures' for individual frames
+
+    Args:
+        destination_dir (Path): Root directory for the file structure (default='./')
+
+    Returns:
+        figure_root_path (Path): Path from destination_dir to the hidden figure directory
+        animation_root_path (Path): Path from destination_dir to the animation directory
+
+    Example:
+        >>> print(generateAnimationFileStructure())
+        (PosixPath('.figures'), PosixPath('animations'))
     """
     figure_dir = Path(".figures")
     animation_dir = Path("animations")
@@ -56,6 +65,23 @@ def generateAnimationFileStructure(destination_dir: Path = Path("./")):
 
 
 def getMonthFilePath(year: int, month: int, figure_path: Path):
+    """
+    Returns the year, month directory path.
+
+    If the path does not already exist, generates a year, month directory file structure for a given year, month
+    combination within the hidden .figures directory.
+
+    Args:
+        year (int): Year of the figure for this path
+        month (int): Month of the figure for this path
+
+    Returns:
+        figure_month_path (Path): Path rooted from figure_path to the year, month directory
+
+    Example:
+        >>> print(getMonthFilePath(2022, 1, Path("./.figures")))
+        (PosixPath('.figures'), PosixPath('animations'))
+    """
     figure_year_path = Path.joinpath(figure_path, Path(str(year)))
     figure_month_path = Path.joinpath(figure_year_path, Path(str(month)))
 
@@ -284,8 +310,8 @@ def animate(
         print(f"Animation Previously Generated {gif_name}")
 
 
-startDate = datetime.datetime(2022, 12, 1)
-endDate = datetime.datetime(2023, 1, 30)
+startDate = datetime.datetime(2023, 1, 1)
+endDate = datetime.datetime(2023, 2, 28)
 animate(startDate, endDate, gridType=GridType.EASE2_G9km)
 
 # TODO:
