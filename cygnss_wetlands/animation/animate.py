@@ -34,6 +34,41 @@ def genDistribution(data, filename: str, variable_name: str):
     plt.savefig(filename)
 
 
+def generateAnimationFileStructure(destination_dir: Path = Path("./")):
+    """
+    Generates file structure for a chart
+    .charts
+    -> year
+        -> Month
+    """
+    figure_dir = Path(".figures")
+    animation_dir = Path("animations")
+
+    figure_root_path = Path.joinpath(destination_dir, figure_dir)
+    animation_root_path = Path.joinpath(destination_dir, animation_dir)
+
+    if not figure_root_path.exists():
+        figure_root_path.mkdir()
+    if not animation_root_path.exists():
+        animation_root_path.mkdir()
+
+    return figure_root_path, animation_root_path
+
+
+def getMonthFilePath(year: int, month: int, figure_path: Path):
+    figure_year_path = Path.joinpath(figure_path, Path(str(year)))
+    figure_month_path = Path.joinpath(figure_year_path, Path(str(month)))
+
+    if not figure_path.exists():
+        generateAnimationFileStructure()
+    if not figure_year_path.exists():
+        figure_year_path.mkdir()
+    if not figure_month_path.exists():
+        figure_month_path.mkdir()
+
+    return figure_month_path
+
+
 def createMonthlyIntervals(year: int, month: int, numIntervals: int):
     """
     Outputs a list of intervals for the given month
@@ -168,6 +203,8 @@ def animate(
     figures = []
     grid = EASE2GRID(gridType)
 
+    figurePath, animationPath = generateAnimationFileStructure()
+
     file_base = (
         "DDM_SNR_"
         + str(startDate.year)
@@ -182,7 +219,7 @@ def animate(
     )
 
     gif_name = file_base + ".gif"
-    gif_path = Path("./" + gif_name)
+    gif_path = Path.joinpath(animationPath, gif_name)
 
     if not gif_path.exists():
         print(f"Generating Animation {gif_name}")
@@ -190,7 +227,7 @@ def animate(
         metadata = reader.metadata(variable_name="ddm_snr", grid=grid, start_date=startDate, end_date=endDate)
         min = 0
         # Select only the top 99% of data to extract outliers; used for the colorbar max
-        max = np.nanpercentile(metadata["data"], 99)
+        max = round(np.nanpercentile(metadata["data"], 99))
 
         if generateDistribution:
             distribution_file = file_base + "_dist.png"
@@ -203,7 +240,6 @@ def animate(
 
             # Create a figure for each interval of the month
             for dateInterval in monthIntervals:
-                # TODO: Include either max DDM SNR or date range in filename to prevent anomalous colorbar range
                 figName = (
                     "DDM_SNR_"
                     + str(currentDate.year)
@@ -215,17 +251,20 @@ def animate(
                     + f"{dateInterval[1]:02}"
                     + "_"
                     + f"{str(int(grid.res))}"
+                    + "_max-"
+                    + f"{str(int(max))}"
                     + ".png"
                 )
-                figPath = Path(figName)
+                monthPath = getMonthFilePath(currentDate.year, currentDate.month, figurePath)
+                figPath = Path.joinpath(monthPath, figName)
                 if not figPath.exists():
                     print(f"Generating Figure {figName}")
                     generateFigure(
-                        figName, currentDate.year, currentDate.month, dateInterval[0], dateInterval[1], grid, max, min
+                        figPath, currentDate.year, currentDate.month, dateInterval[0], dateInterval[1], grid, max, min
                     )
                 else:
                     print(f"Figure Previously Generated {figName}")
-                figures.append(figName)
+                figures.append(figPath)
 
             # Increment the current month
             if currentDate.month == 12:
@@ -245,11 +284,10 @@ def animate(
         print(f"Animation Previously Generated {gif_name}")
 
 
-startDate = datetime.datetime(2023, 1, 1)
+startDate = datetime.datetime(2022, 12, 1)
 endDate = datetime.datetime(2023, 1, 30)
 animate(startDate, endDate, gridType=GridType.EASE2_G9km)
 
 # TODO:
-# 1. Save to organized file structure
-# 2. Run via command line
-# 3. Notebook version
+# 1. Run via command line
+# 2. Notebook version
