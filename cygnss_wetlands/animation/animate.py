@@ -5,6 +5,8 @@ from pathlib import Path
 import imageio
 import matplotlib.pyplot as plt
 import numpy as np
+from IPython.display import Image, display
+from PIL import Image as pillowImage
 
 from cygnss_wetlands.cygnss.reader import CONFIG, CygnssL1Reader
 from cygnss_wetlands.enums import GridType
@@ -330,8 +332,16 @@ def animate(
         # Save gif
         imageio.mimsave(gif_path, frames, duration=frameDurations)
         print(f"Animation saved to {gif_path}")
+        # Shows GIF in Jupyter Notebook
+        display(Image(filename=gif_path))
+        # Opens GIF on system viewer
+        pillowImage.open(gif_path).show()
     else:
         print(f"Animation Previously Generated {gif_path}")
+        # Shows GIF in Jupyter Notebook
+        display(Image(filename=gif_path))
+        # Opens GIF on system viewer
+        pillowImage.open(gif_path).show()
 
 
 # startDate = datetime.datetime(2023, 1, 1)
