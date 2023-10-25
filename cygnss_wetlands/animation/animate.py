@@ -27,6 +27,7 @@ def genDistribution(data, filename: str, variable_name: str):
     Returns:
         None: Saves histogram figure to filename
     """
+    print(f"Generating distribution of {variable_name}")
     plt.hist(data, bins=30)
     plt.title("Histogram")
     plt.xlabel(variable_name)
@@ -228,11 +229,13 @@ def animate(
 
     figures = []
     grid = EASE2GRID(gridType)
+    plotVariable = "ddm_snr"
 
     figurePath, animationPath = generateAnimationFileStructure()
 
     file_base = (
-        "DDM_SNR_"
+        plotVariable.upper()
+        + "_"
         + str(startDate.year)
         + f"{startDate.month:02}"
         + "-"
@@ -249,15 +252,17 @@ def animate(
 
     if not gif_path.exists():
         print(f"Generating Animation {gif_name}")
+
         # Collect metadata on the requested variable
-        metadata = reader.metadata(variable_name="ddm_snr", grid=grid, start_date=startDate, end_date=endDate)
+        print(f"Calculating metadata for {plotVariable}")
+        metadata = reader.metadata(variable_name=plotVariable, grid=grid, start_date=startDate, end_date=endDate)
         min = 0
         # Select only the top 99% of data to extract outliers; used for the colorbar max
         max = round(np.nanpercentile(metadata["data"], 99))
 
         if generateDistribution:
             distribution_file = file_base + "_dist.png"
-            genDistribution(metadata["data"], distribution_file, "ddm_snr")
+            genDistribution(metadata["data"], distribution_file, plotVariable)
 
         currentDate = startDate
         # Iterate through each month of the animation
@@ -267,7 +272,8 @@ def animate(
             # Create a figure for each interval of the month
             for dateInterval in monthIntervals:
                 figName = (
-                    "DDM_SNR_"
+                    plotVariable.upper()
+                    + "_"
                     + str(currentDate.year)
                     + f"{currentDate.month:02}"
                     + f"{dateInterval[0]:02}"
@@ -306,14 +312,15 @@ def animate(
             frameDurations.append(frameDuration)
         # Save gif
         imageio.mimsave(gif_path, frames, duration=frameDurations)
+        print(f"Animation saved to {gif_path}")
     else:
-        print(f"Animation Previously Generated {gif_name}")
+        print(f"Animation Previously Generated {gif_path}")
 
 
-startDate = datetime.datetime(2023, 1, 1)
-endDate = datetime.datetime(2023, 2, 28)
-animate(startDate, endDate, gridType=GridType.EASE2_G9km)
+# startDate = datetime.datetime(2023, 1, 1)
+# endDate = datetime.datetime(2023, 2, 28)
+# animate(startDate, endDate, gridType=GridType.EASE2_G9km)
 
 # TODO:
 # 1. Run via command line
-# 2. Notebook version
+# 2. Notebook version --- hardcode animations and figures to go to root of cygnss_wetlands
