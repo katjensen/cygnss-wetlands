@@ -218,6 +218,7 @@ def animate(
     startDate: datetime,
     endDate: datetime,
     plotVariable: str,
+    outputFileLocation: Path = Path("./"),
     monthlyIntervals: int = 2,
     frameDuration: int = 1000,
     gridType: GridType = GridType.EASE2_G9km,
@@ -230,19 +231,20 @@ def animate(
         startDate (datetime): Start date of animation. Animation will begin at the beginning of the selected month.
         endDate (datetime): End date of animation. Animation will end at the end of the selected month.
         plotVariable (str): Variable to plot
+        outputFileLocation (Path): Root directory for figure & animation directories (default=Path("./"))
         monthlyIntervals (int): Number of frames per month of animation (default=2)
         frameDuration (int): ms between frames (default=1000)
         gridType (GridType): EASE2 GridType describing size of pixel footprint (default=EASE2_G9km)
         generateDistribution (bool): Boolean to generate a histogram of the dataset (default=False)
 
     Returns:
-        None: Saves GIF animation to VARIABLENAME_YYYYMMDD(start)-YYYMMDD(end)_gridResolutioN.gif
+        None: Saves GIF animation to outputFileLocation/animations/VARIABLENAME_YYYYMMDD(start)-YYYMMDD(end)_gridResolution_monthlyIntervals.gif
     """
 
     figures = []
     grid = EASE2GRID(gridType)
 
-    figurePath, animationPath = generateAnimationFileStructure()
+    figurePath, animationPath = generateAnimationFileStructure(destination_dir=outputFileLocation)
 
     file_base = (
         plotVariable.upper()
@@ -342,12 +344,3 @@ def animate(
         display(Image(filename=gif_path))
         # Opens GIF on system viewer
         pillowImage.open(gif_path).show()
-
-
-# startDate = datetime.datetime(2023, 1, 1)
-# endDate = datetime.datetime(2023, 1, 28)
-# animate(startDate, endDate, plotVariable="ddm_snr", gridType=GridType.EASE2_G9km)
-
-# TODO:
-# 1. Run via command line
-# 2. Notebook version --- hardcode animations and figures to go to root of cygnss_wetlands
