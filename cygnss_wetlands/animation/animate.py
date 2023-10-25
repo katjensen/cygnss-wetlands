@@ -126,13 +126,22 @@ def createMonthlyIntervals(year: int, month: int, numIntervals: int):
 
 
 def generateFigure(
-    figureName: str, year: int, month: int, startDate: int, endDate: int, grid: GridType, max: float, min: float
+    figureName: str,
+    variableName: str,
+    year: int,
+    month: int,
+    startDate: int,
+    endDate: int,
+    grid: GridType,
+    max: float,
+    min: float,
 ):
     """
     Creates and saves a figure to figureName for the given year, month, and date range on the prescribed grid.
 
     Args:
         figureName (str): The filename to save the figure to
+        variableName (str): Variable to plot
         year (int): The year in numerical format the figure is representing
         month (int): The month in numerical format the figure is representing
         startDate (int): The start date of the month in numerical format the figure is representing
@@ -147,8 +156,7 @@ def generateFigure(
     d1 = datetime.datetime(year, month, startDate)
     d2 = datetime.datetime(year, month, endDate)
 
-    # TODO: Parameterize variable_name
-    snr = reader.aggregate(variable_name="ddm_snr", grid=grid, start_date=d1, end_date=d2)
+    snr = reader.aggregate(variable_name=variableName, grid=grid, start_date=d1, end_date=d2)
 
     # Plot
     bbox_grid_xmin, bbox_grid_ymin = grid.lonlat2cr(reader.xmin, reader.ymin)
@@ -161,14 +169,14 @@ def generateFigure(
     cmap.set_bad(color=no_data_color)
 
     pos = ax.imshow(snr, cmap=cmap, vmin=min, vmax=max)
-    plt.colorbar(pos, ax=ax, label="DDM SNR")
+    plt.colorbar(pos, ax=ax, label=variableName.upper())
 
     # Create a legend for missing data
     handles = [plt.Rectangle((0, 0), 1, 1, color="gray")]
     labels = ["No Data"]
     plt.legend(handles, labels)
 
-    ax.set_title(f"DDM_SNR {d1.strftime('%Y-%m-%d')} to {d2.strftime('%Y-%m-%d')} grid={grid.name}")
+    ax.set_title(f"{variableName.upper()} {d1.strftime('%Y-%m-%d')} to {d2.strftime('%Y-%m-%d')} grid={grid.name}")
     ax.set_xlim(bbox_grid_xmin, bbox_grid_xmax)
     ax.set_ylim(bbox_grid_ymin, bbox_grid_ymax)
 
@@ -207,6 +215,7 @@ def generateFigure(
 def animate(
     startDate: datetime,
     endDate: datetime,
+    plotVariable: str,
     monthlyIntervals: int = 2,
     frameDuration: int = 1000,
     gridType: GridType = GridType.EASE2_G9km,
@@ -218,18 +227,18 @@ def animate(
     Args:
         startDate (datetime): Start date of animation. Animation will begin at the beginning of the selected month.
         endDate (datetime): End date of animation. Animation will end at the end of the selected month.
+        plotVariable (str): Variable to plot
         monthlyIntervals (int): Number of frames per month of animation (default=2)
         frameDuration (int): ms between frames (default=1000)
         gridType (GridType): EASE2 GridType describing size of pixel footprint (default=EASE2_G9km)
         generateDistribution (bool): Boolean to generate a histogram of the dataset (default=False)
 
     Returns:
-        None: Saves GIF animation to DDM_SNR_YYYYMMDD(start)-YYYMMDD(end)_gridResolutioN.gif
+        None: Saves GIF animation to VARIABLENAME_YYYYMMDD(start)-YYYMMDD(end)_gridResolutioN.gif
     """
 
     figures = []
     grid = EASE2GRID(gridType)
-    plotVariable = "ddm_snr"
 
     figurePath, animationPath = generateAnimationFileStructure()
 
@@ -292,7 +301,15 @@ def animate(
                 if not figPath.exists():
                     print(f"Generating Figure {figName}")
                     generateFigure(
-                        figPath, currentDate.year, currentDate.month, dateInterval[0], dateInterval[1], grid, max, min
+                        figPath,
+                        plotVariable,
+                        currentDate.year,
+                        currentDate.month,
+                        dateInterval[0],
+                        dateInterval[1],
+                        grid,
+                        max,
+                        min,
                     )
                 else:
                     print(f"Figure Previously Generated {figName}")
@@ -318,8 +335,8 @@ def animate(
 
 
 # startDate = datetime.datetime(2023, 1, 1)
-# endDate = datetime.datetime(2023, 2, 28)
-# animate(startDate, endDate, gridType=GridType.EASE2_G9km)
+# endDate = datetime.datetime(2023, 1, 28)
+# animate(startDate, endDate, plotVariable="ddm_snr", gridType=GridType.EASE2_G9km)
 
 # TODO:
 # 1. Run via command line
